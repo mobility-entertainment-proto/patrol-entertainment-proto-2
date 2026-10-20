@@ -121,6 +121,7 @@
   .award p { margin: 0 0 6px; font-size: 14px; line-height: 1.6; }
   .award .more-medals { font-size: 12px; opacity: .8; margin-bottom: 18px; }
   .award .btn { max-width: 240px; background: #ffe08a; color: #3d3000; border-color: #ffe08a; font-weight: 800; letter-spacing: 0; }
+  .toast { text-align: center; font-size: 13px; color: var(--primary); font-weight: 700; min-height: 20px; margin-top: 6px; }
   #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
 
   /* コレクション */
@@ -177,6 +178,12 @@
         <span><b>メダルコレクション</b><br><small id="medalCount"></small></span>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="color:var(--muted)"><path d="M10 6 8.6 7.4 13.2 12l-4.6 4.6L10 18l6-6z"/></svg>
       </button>
+      <div class="demo" style="margin-top:14px">
+        <button data-bulk="5">+5回の巡回（デモ）</button>
+        <button data-bulk="10">+10回の巡回（デモ）</button>
+        <button data-bulk="reset">リセット（デモ）</button>
+      </div>
+      <div class="toast" id="toast"></div>
     </section>
 
     <!-- 完了画面 -->
@@ -602,6 +609,21 @@
     renderCollection();
     if (won.length) { awardQueue = won; showAward(); }
   });
+  // 入力画面のデモ：今日の巡回（ON）としてまとめて追加
+  document.querySelectorAll('[data-bulk]').forEach(b => b.addEventListener('click', async () => {
+    if (b.dataset.bulk === 'reset') {
+      if (!confirm('メダルと記録をリセットしますか？')) return;
+      stats = freshStats(); saveStats(); renderLink();
+      $('toast').textContent = 'リセットしました';
+      return;
+    }
+    const n = Number(b.dataset.bulk), weather = await getWeather(), won = [];
+    for (let i = 0; i < n; i++) won.push(...recordTouch('ON', new Date(), weather));
+    renderLink();
+    $('toast').textContent = `巡回を${n}回追加しました（累計${stats.on}回・本日${stats.days[ymdOf(new Date())]}回）`;
+    if (won.length) { awardQueue = won; showAward(); }
+  }));
+
   $('demoReset').addEventListener('click', () => {
     if (!confirm('メダルと記録をリセットしますか？')) return;
     stats = freshStats(); saveStats(); renderCollection();
