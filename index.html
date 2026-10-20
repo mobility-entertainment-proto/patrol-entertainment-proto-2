@@ -86,6 +86,22 @@
   .medal-link .mini svg { width: 30px; height: 38px; margin-right: -8px; }
   .medal-link > span:nth-child(2) { flex: 1; }
   .medal-link small { color: var(--muted); }
+  .meter { position: relative; background: linear-gradient(135deg, #057b7a, #0aa29f); color: #fff; border-radius: 14px; padding: 16px 18px 20px; margin-top: 16px; box-shadow: 0 6px 16px rgba(5,123,122,.3); }
+  .meter .label { font-size: 14px; opacity: .92; }
+  .meter .counter { position: relative; display: inline-block; font-size: 60px; font-weight: 800; line-height: 1.1; margin: 2px 0; }
+  .meter .counter small { font-size: 18px; font-weight: 700; margin-left: 4px; }
+  .meter .counter.go { animation: bump .4s cubic-bezier(.2,2,.4,1); }
+  @keyframes bump { 50% { transform: scale(1.18); } }
+  .meter .plus { position: absolute; right: -40px; top: 6px; font-size: 22px; font-weight: 900; color: #ffe08a; opacity: 0; }
+  .meter .plus.go { animation: plus 1.2s ease-out; }
+  @keyframes plus { 0% { opacity: 0; transform: translateY(14px); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(-22px); } }
+  .meter .track { position: relative; height: 12px; background: rgba(255,255,255,.25); border-radius: 6px; margin: 34px 18px 34px; }
+  .meter .fill { height: 100%; width: 0; border-radius: 6px; background: linear-gradient(90deg, #ffe08a, #fff6cf); transition: width 1s cubic-bezier(.3,1,.4,1); }
+  .meter .mark { position: absolute; top: 50%; transform: translate(-50%, -66%); text-align: center; }
+  .meter .mark svg { width: 34px; height: 43px; display: block; filter: grayscale(1) brightness(1.3); opacity: .5; transition: all .4s; }
+  .meter .mark.got svg { filter: none; opacity: 1; }
+  .meter .mark span { display: block; font-size: 11px; font-weight: 700; margin-top: -2px; }
+  .meter .next { font-size: 14px; font-weight: 700; color: #ffe08a; }
   .next-card { background: #fff; border-radius: 14px; padding: 14px 16px; margin-top: 16px; text-align: left; box-shadow: 0 2px 8px rgba(5,123,122,.1); }
   .next-card h3 { font-size: 13px; color: var(--muted); font-weight: 600; margin: 0 0 8px; }
   .prog { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: center; padding: 6px 0; }
@@ -184,8 +200,15 @@
           <button class="more" id="btnMore">ほかの言葉も見る ›</button>
         </div>
 
+        <div class="meter" id="meter" hidden>
+          <div class="label" id="meterLabel"></div>
+          <div class="counter" id="meterCounter"><span id="meterNum">0</span><small id="meterUnit">回</small><span class="plus" id="meterPlus">+1</span></div>
+          <div class="track" id="meterTrack"><div class="fill" id="meterFill"></div></div>
+          <div class="next" id="meterNext"></div>
+        </div>
+
         <div class="next-card" id="nextCard">
-          <h3>もうすぐ手に入るメダル</h3>
+          <h3>ほかにもうすぐ手に入るメダル</h3>
           <div id="nextList"></div>
         </div>
 
@@ -233,8 +256,8 @@
 
 <script>
   const USER_ID = 'taro.yamada@example.com';
-  const STORE_KEY = 'patrol-thanks-v1';
-  const RECENT_KEY = 'patrol-thanks-recent-v1';
+  // 保存名はこのプロト専用にする（同じ github.io の下のプロトは保存場所を共有するため）
+  const RECENT_KEY = 'patrol2-thanks-recent-v1';
   const RECENT_MAX = 15;   // 最近出た言葉はこの件数ぶん出さない
   const PLACE = { lat: 35.681, lon: 139.767 };   // 天気を見る場所（東京）
   const $ = (id) => document.getElementById(id);
@@ -317,15 +340,6 @@
     return { key: 'late', name: '深夜', icon: 'moon' };
   }
 
-  // 今日の記録回数（このブラウザ内にだけ保存）
-  function loadLog() { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { return {}; } }
-  function countToday(ymd) {
-    const log = loadLog();
-    log[ymd] = (log[ymd] || 0) + 1;
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(log)); } catch {}
-    return log[ymd];
-  }
-
   // 天気（Open-Meteo。取れなければ天気の言葉は使わない）
   let weatherCache = null;
   async function getWeather() {
@@ -389,29 +403,33 @@
   let lastCtx = null;
   async function register(kind) {
     const t = nowParts();
-    const count = countToday(t.ymd);
     $('tag').textContent = kind;
     $('tag').classList.toggle('off', kind === 'OFF');
     $('sumTime').textContent = t.label;
     $('sumPlace').textContent = `${$('pointPlace').textContent}（No.${$('pointNo').textContent}）`;
-    $('sumCount').textContent = `${count}回目`;
     $('thanksWords').textContent = '';
     $('thanksLabel').textContent = '';
     $('thanksChips').innerHTML = '';
     $('thanksPic').innerHTML = ICONS.shield;
     $('nextCard').hidden = true;
+    $('meter').hidden = true;
     document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === 'screen-done'));
     window.scrollTo(0, 0);
     const weather = await getWeather();
+    const metric = MEDALS.find(m => m.id === (kind === 'ON' ? 'meister' : 'finish'));
+    const before = metric.value(stats);
+    const won = recordTouch(kind, t.d, weather);
+    const count = stats.days[t.ymd];   // 本日の巡回（ON）回数
+    $('sumCount').textContent = kind === 'ON' ? `本日${count}回目の巡回` : `本日の巡回 ${count}回`;
     lastCtx = { kind, band: timeBand(t.d.getHours()), count, weather };
     renderThanks(chooseWords(lastCtx), lastCtx);
-    const won = recordTouch(kind, t.d, weather);
+    renderMeter(metric, before, metric.value(stats));
     renderNext();
-    if (won.length) { awardQueue = won; setTimeout(showAward, 1200); }
+    if (won.length) { awardQueue = won; setTimeout(showAward, 1700); }
   }
 
   // ---------------- メダル ----------------
-  const STATS_KEY = 'patrol-medal-v1';
+  const STATS_KEY = 'patrol2-medal-v1';
   const TIERS = [
     { name: 'ブロンズ', light: '#f3c19a', mid: '#cd7f32', dark: '#7a4a1e' },
     { name: 'シルバー', light: '#ffffff', mid: '#c0c7cf', dark: '#6b7680' },
@@ -485,6 +503,36 @@
     MEDALS.forEach(m => { for (let t = before[m.id]; t < tierOf(m); t++) { won.push({ m, tier: t }); stats.earned[`${m.id}-${t}`] = ymd; } });
     saveStats();
     return won;
+  }
+
+  // 累計のバロメーター（ON = 巡回マイスター、OFF = 勤務完了）
+  function renderMeter(m, before, after) {
+    const max = m.goals[m.goals.length - 1];
+    // メダルは等間隔に置き、メダルとメダルの間で進み具合を伸ばす
+    const pos = (v) => {
+      const i = m.goals.findIndex(g => v < g);
+      if (i < 0) return 100;
+      const prev = i ? m.goals[i - 1] : 0;
+      return (i + (v - prev) / (m.goals[i] - prev)) / m.goals.length * 100;
+    };
+    $('meter').hidden = false;
+    $('meterLabel').textContent = m.id === 'meister' ? '累計の巡回数' : '累計の勤務完了数';
+    $('meterNum').textContent = before;
+    $('meterUnit').textContent = '回';
+    $('meterTrack').querySelectorAll('.mark').forEach(e => e.remove());
+    m.goals.forEach((g, i) => $('meterTrack').insertAdjacentHTML('beforeend', `<div class="mark${before >= g ? ' got' : ''}" data-goal="${g}" style="left:${(i + 1) / m.goals.length * 100}%">${medalSVG(m, i)}<span>${g}</span></div>`));
+    const set = (v) => {
+      $('meterFill').style.width = `${pos(Math.min(v, max))}%`;
+      $('meterTrack').querySelectorAll('.mark').forEach(e => e.classList.toggle('got', v >= Number(e.dataset.goal)));
+      const t = m.goals.find(g => v < g);
+      $('meterNext').textContent = t ? `${TIERS[m.goals.indexOf(t)].name}メダルまで あと${t - v}回！` : `${m.name}のメダルをすべて獲得しました！`;
+    };
+    set(before);
+    setTimeout(() => {
+      $('meterNum').textContent = after;
+      ['meterCounter', 'meterPlus'].forEach(id => { $(id).classList.remove('go'); void $(id).offsetWidth; $(id).classList.add('go'); });
+      set(after);
+    }, 500);
   }
 
   function renderNext() {
