@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#057b7a">
+<title>パトログ メダル</title>
+<style>
+  :root {
+    --primary: #057b7a;
+    --primary-dark: #04605f;
+    --ok: #2bb24c;
+    --navy: #214d60;
+    --text: #222;
+    --muted: #5f6b6b;
+    --line: #8a8a8a;
+    --bg: #f4f7f7;
+    --footer: #e6eeee;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+    color: var(--text); background: var(--bg);
+    display: flex; flex-direction: column; min-height: 100vh;
+  }
+  header {
+    background: var(--primary); color: #fff; display: flex; align-items: center; gap: 12px;
+    padding: 8px 12px; padding-top: calc(8px + env(safe-area-inset-top)); position: sticky; top: 0; z-index: 10;
+  }
+  .icon-btn { background: none; border: 0; color: inherit; padding: 4px; cursor: pointer; display: flex; }
+  .brand { font-size: 20px; flex: 1; letter-spacing: .5px; }
+  .head-icons { display: flex; gap: 6px; }
+
+  main { flex: 1; width: 100%; max-width: 480px; margin: 0 auto; padding: 24px 24px 40px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* 入力画面（パトログと同じ構成） */
+  .point { text-align: center; margin: 8px 0 22px; }
+  .point .no { font-size: 26px; font-weight: 500; letter-spacing: 1px; }
+  .point .place { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .field { display: grid; grid-template-columns: 84px 1fr; align-items: end; gap: 12px; margin-bottom: 18px; }
+  .field label { text-align: right; font-size: 15px; padding-bottom: 6px; }
+  .field input, .field .value { font: inherit; font-size: 15px; color: var(--text); border: 0; border-bottom: 1px solid var(--line); background: transparent; padding: 6px 0; width: 100%; min-width: 0; border-radius: 0; outline: none; }
+  .field input:focus { border-bottom: 2px solid var(--primary); padding-bottom: 5px; }
+  .field .value { word-break: break-all; }
+  .actions { margin-top: 36px; display: grid; gap: 14px; }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 10px; font: inherit; font-size: 20px; letter-spacing: 2px; height: 56px; border-radius: 4px; cursor: pointer; border: 2px solid var(--primary); width: 100%; }
+  .btn:active { transform: scale(.99); }
+  .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.2); }
+  .btn-outline { background: #fff; color: var(--primary); }
+  .btn-sm { font-size: 16px; letter-spacing: 0; height: 48px; }
+
+  /* 完了画面 */
+  .done { text-align: center; padding-top: 18px; }
+  .stamp { display: inline-flex; align-items: center; gap: 6px; }
+  .stamp svg { width: 44px; height: 44px; }
+  .stamp .tag { background: var(--ok); color: #fff; font-size: 30px; font-weight: 700; border-radius: 8px; padding: 2px 18px; letter-spacing: 1px; animation: pop .45s cubic-bezier(.2,1.7,.4,1); }
+  .stamp .tag.off { background: var(--navy); }
+  .stamp path.check { stroke-dasharray: 40; stroke-dashoffset: 40; animation: draw .4s .15s ease-out forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @keyframes pop { from { transform: scale(.4); } }
+  .done .msg { font-size: 14px; margin: 12px 0 22px; }
+
+  /* ねぎらいカード */
+  .thanks { position: relative; background: #fff; border-radius: 16px; padding: 18px 18px 14px; text-align: left; box-shadow: 0 4px 14px rgba(5,123,122,.14); border-top: 6px solid var(--primary); animation: rise .6s .25s cubic-bezier(.2,1.2,.4,1) backwards; }
+  @keyframes rise { from { transform: translateY(24px); } }
+  .thanks .head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .thanks .pic { width: 56px; height: 56px; flex: 0 0 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #e3f2f1; }
+  .thanks .pic svg { width: 34px; height: 34px; }
+  .thanks .label { font-size: 12px; font-weight: 700; color: var(--primary); }
+  .thanks .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .thanks .chip { font-size: 11px; background: #eef4f4; color: var(--muted); border-radius: 999px; padding: 2px 8px; }
+  .thanks .words { font-size: 18px; font-weight: 700; line-height: 1.6; min-height: 58px; }
+  .thanks .more { display: block; margin: 8px 0 0 auto; background: none; border: 0; color: var(--primary); font: inherit; font-size: 12px; cursor: pointer; }
+
+  .summary { background: #fff; border-radius: 6px; padding: 14px 18px; text-align: left; font-size: 14px; margin: 18px 0 22px; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .summary dl { display: grid; grid-template-columns: 84px 1fr; gap: 8px 12px; margin: 0; }
+  .summary dt { color: var(--muted); }
+  .summary dd { margin: 0; word-break: break-all; }
+
+  /* メダル */
+  .medal-link { width: 100%; display: flex; align-items: center; gap: 12px; margin-top: 22px; background: #fff; border: 1px solid #cfe3e2; border-radius: 12px; padding: 10px 12px; font: inherit; font-size: 14px; text-align: left; color: var(--text); cursor: pointer; }
+  .medal-link .mini { display: flex; }
+  .medal-link .mini svg { width: 30px; height: 38px; margin-right: -8px; }
+  .medal-link > span:nth-child(2) { flex: 1; }
+  .medal-link small { color: var(--muted); }
+  .next-card { background: #fff; border-radius: 14px; padding: 14px 16px; margin-top: 16px; text-align: left; box-shadow: 0 2px 8px rgba(5,123,122,.1); }
+  .next-card h3 { font-size: 13px; color: var(--muted); font-weight: 600; margin: 0 0 8px; }
+  .prog { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: center; padding: 6px 0; }
+  .prog svg { width: 40px; height: 50px; }
+  .prog .nm { font-size: 14px; font-weight: 700; }
+  .prog .bar { height: 8px; background: #e3eeee; border-radius: 4px; overflow: hidden; margin: 4px 0 2px; }
+  .prog .bar div { height: 100%; background: linear-gradient(90deg, #39b5a4, var(--primary)); border-radius: 4px; transition: width .8s; }
+  .prog .tx { font-size: 12px; color: var(--muted); }
+  .award { position: fixed; inset: 0; background: rgba(4,40,40,.86); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 40; padding: 24px; color: #fff; text-align: center; }
+  .award.open { display: flex; }
+  .award .glow { position: relative; width: 200px; height: 250px; display: flex; align-items: center; justify-content: center; }
+  .award .glow::before { content: ""; position: absolute; left: 50%; top: 55%; width: 400px; height: 400px; margin: -200px 0 0 -200px; border-radius: 50%; background: repeating-conic-gradient(rgba(255,215,106,.32) 0 10deg, transparent 10deg 20deg); -webkit-mask: radial-gradient(circle, #000 15%, transparent 65%); mask: radial-gradient(circle, #000 15%, transparent 65%); animation: rot 10s linear infinite; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+  .award .glow svg { position: relative; width: 170px; height: 215px; animation: medalIn 1s cubic-bezier(.2,1.3,.4,1); }
+  @keyframes medalIn { 0% { transform: translateY(-200px) rotateY(0) scale(.4); } 60% { transform: translateY(0) rotateY(720deg) scale(1.08); } 100% { transform: rotateY(720deg) scale(1); } }
+  .award h3 { font-size: 22px; margin: 10px 0 4px; color: #ffe08a; }
+  .award p { margin: 0 0 6px; font-size: 14px; line-height: 1.6; }
+  .award .more-medals { font-size: 12px; opacity: .8; margin-bottom: 18px; }
+  .award .btn { max-width: 240px; background: #ffe08a; color: #3d3000; border-color: #ffe08a; font-weight: 800; letter-spacing: 0; }
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+
+  /* コレクション */
+  .col-head { display: flex; justify-content: space-between; align-items: baseline; margin: 6px 0 14px; }
+  .col-head h2 { font-size: 20px; margin: 0; }
+  .col-head span { color: var(--muted); font-size: 14px; }
+  .col-head b { color: var(--primary); font-size: 22px; }
+  .mrow { background: #fff; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+  .mrow .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .mrow .nm { font-weight: 700; font-size: 15px; }
+  .mrow .val { font-size: 12px; color: var(--muted); }
+  .mrow .desc { font-size: 12px; color: var(--muted); margin: 2px 0 6px; }
+  .mrow .slots { display: flex; gap: 10px; }
+  .mrow .slot { flex: 1; text-align: center; font-size: 11px; color: var(--muted); }
+  .mrow .slot svg { width: 52px; height: 66px; display: block; margin: 0 auto 2px; }
+  .mrow .slot.locked svg { filter: grayscale(1); opacity: .28; }
+  .mrow .slot b { display: block; color: var(--text); font-size: 11px; }
+  .demo { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; margin-top: 8px; }
+  .demo button { background: none; border: 0; color: #999; font-size: 12px; text-decoration: underline; cursor: pointer; }
+
+  footer { background: var(--footer); padding: 20px 20px calc(20px + env(safe-area-inset-bottom)); font-size: 14px; }
+  footer nav { display: flex; flex-wrap: wrap; gap: 8px 0; }
+  footer nav a { color: var(--primary-dark); text-decoration: none; padding: 0 12px; border-left: 1px solid #9bb; }
+  footer nav a:first-child { border-left: 0; padding-left: 0; }
+  footer .copy { color: #889; text-align: center; margin-top: 16px; font-size: 12px; }
+</style>
+</head>
+<body>
+  <header>
+    <button class="icon-btn" aria-label="メニュー"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg></button>
+    <div class="brand">パトログ</div>
+    <div class="head-icons">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11c0-3.07-1.64-5.64-4.5-6.32V4a1.5 1.5 0 0 0-3 0v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+    </div>
+  </header>
+
+  <main>
+    <!-- 入力画面 -->
+    <section class="screen active" id="screen-form">
+      <div class="point">
+        <div class="no" id="pointNo">15838</div>
+        <div class="place" id="pointPlace">A棟 1F 正面玄関</div>
+      </div>
+      <div class="field"><label>ユーザーID</label><div class="value" id="userId"></div></div>
+      <div class="field"><label>カード番号</label><div class="value">000304</div></div>
+      <div class="field"><label for="comment">コメント</label><input id="comment" type="text" autocomplete="off"></div>
+      <div class="actions">
+        <button class="btn btn-primary" id="btnOn">ON</button>
+        <button class="btn btn-outline" id="btnOff">OFF</button>
+      </div>
+      <button class="medal-link" data-go="medals">
+        <span class="mini" id="miniMedals"></span>
+        <span><b>メダルコレクション</b><br><small id="medalCount"></small></span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="color:var(--muted)"><path d="M10 6 8.6 7.4 13.2 12l-4.6 4.6L10 18l6-6z"/></svg>
+      </button>
+    </section>
+
+    <!-- 完了画面 -->
+    <section class="screen" id="screen-done">
+      <div class="done">
+        <div class="stamp">
+          <svg viewBox="0 0 44 44"><path class="check" d="M6 23 l10 10 L38 9" fill="none" stroke="var(--ok)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="tag" id="tag">ON</span>
+        </div>
+        <p class="msg">登録が完了しました。</p>
+
+        <div class="thanks" id="thanks">
+          <div class="head">
+            <div class="pic" id="thanksPic"></div>
+            <div>
+              <div class="label" id="thanksLabel"></div>
+              <div class="chips" id="thanksChips"></div>
+            </div>
+          </div>
+          <div class="words" id="thanksWords"></div>
+          <button class="more" id="btnMore">ほかの言葉も見る ›</button>
+        </div>
+
+        <div class="next-card" id="nextCard">
+          <h3>もうすぐ手に入るメダル</h3>
+          <div id="nextList"></div>
+        </div>
+
+        <div class="summary">
+          <dl>
+            <dt>日時</dt><dd id="sumTime"></dd>
+            <dt>場所</dt><dd id="sumPlace"></dd>
+            <dt>本日の記録</dt><dd id="sumCount"></dd>
+          </dl>
+        </div>
+        <div style="display:grid;gap:12px">
+          <button class="btn btn-primary btn-sm" data-go="medals">メダルコレクションを見る</button>
+          <button class="btn btn-outline btn-sm" data-go="form">戻る</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- メダルコレクション -->
+    <section class="screen" id="screen-medals">
+      <div class="col-head"><h2>メダルコレクション</h2><span><b id="colCount">0</b> / <span id="colTotal">0</span></span></div>
+      <div id="medalRows"></div>
+      <div style="display:grid;gap:10px;margin-top:18px">
+        <button class="btn btn-outline btn-sm" data-go="form">戻る</button>
+        <div class="demo">
+          <button id="demoAdd">+10回分の記録（デモ）</button>
+          <button id="demoReset">リセット（デモ）</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="award" id="award">
+    <div class="glow" id="awardMedal"></div>
+    <h3 id="awardTitle"></h3>
+    <p id="awardText"></p>
+    <div class="more-medals" id="awardMore"></div>
+    <button class="btn" id="btnAward">ありがとう！</button>
+  </div>
+  <canvas id="confetti"></canvas>
+
+  <footer>
+    <nav><a href="#">利用規約</a><a href="#">プライバシーポリシー</a><a href="#">ウェブアクセシビリティ</a></nav>
+    <div class="copy">Prototype — 実際の登録は行われません</div>
+  </footer>
+
+<script>
+  const USER_ID = 'taro.yamada@example.com';
+  const STORE_KEY = 'patrol-thanks-v1';
+  const RECENT_KEY = 'patrol-thanks-recent-v1';
+  const RECENT_MAX = 15;   // 最近出た言葉はこの件数ぶん出さない
+  const PLACE = { lat: 35.681, lon: 139.767 };   // 天気を見る場所（東京）
+  const $ = (id) => document.getElementById(id);
+  $('userId').textContent = USER_ID;
+
+  // ---- ねぎらいの言葉 ----
+  // ON（上番・巡回）の時間帯別
+  const ON_BY_TIME = {
+    early:   ['朝早くからありがとうございます。今日も一日、よろしくお願いします。', '夜明け前からの見回り、本当にありがとうございます。', 'まだ静かな時間帯ですね。足元に気をつけて。', '早起きおつかれさまです。朝の空気、気持ちいいですね。', '一番乗りの見回り、ありがとうございます。', '朝の静けさを守ってくれてありがとうございます。'],
+    morning: ['おはようございます！今日もよろしくお願いします。', '朝の巡回ありがとうございます。いい一日になりますように。', '朝いちばんの確認、助かります。', 'みんなが出勤してくる前の確認、ありがとうございます。', '今日もいいスタートですね。', '朝の見回りで一日が安心して始まります。'],
+    day:     ['巡回ありがとうございます。いつも助かっています。', '昼間の見回り、おつかれさまです。こまめに休憩を。', '丁寧なチェック、ありがとうございます。', 'お昼ごはんはしっかり食べられましたか？', '人の多い時間帯の巡回、ありがとうございます。', 'いいペースですね。午後もよろしくお願いします。'],
+    evening: ['夕方の巡回ありがとうございます。暗くなる前の確認、助かります。', 'もうひと頑張り、無理せずいきましょう。', '一日の後半もありがとうございます。', '日が傾いてきましたね。足元に気をつけて。', '夕方の見回り、いつも助かっています。', 'あと少し、いっしょにがんばりましょう。'],
+    night:   ['夜の見回り、ありがとうございます。足元に気をつけて。', '夜遅くまでおつかれさまです。皆さんが安心して過ごせています。', '暗い中の確認、本当にありがとうございます。', '夜の静かな時間を守ってくれてありがとうございます。', 'ライトの準備は大丈夫ですか？気をつけて回ってくださいね。', '夜の巡回、心強いです。'],
+    late:    ['深夜の巡回、本当におつかれさまです。', 'みんなが眠っている間も守ってくれてありがとうございます。', '眠気に負けず、ありがとうございます。温かい飲み物でひと息を。', '深夜の見回りがあるから、みんな安心して眠れています。', '夜明けまであと少し。無理せずいきましょう。', '静かな夜をありがとうございます。'],
+  };
+  // ON でいつでも使える言葉
+  const ON_GENERAL = [
+    'いつもありがとうございます。あなたの巡回が現場を守っています。',
+    '確認ありがとうございます。今日もばっちりです。',
+    '一つひとつの確認が、みんなの安心につながっています。',
+    'ナイス巡回！この調子でいきましょう。',
+    '見えないところまで気を配ってくれてありがとうございます。',
+    '今日も現場の安全を守ってくれて、ありがとうございます。',
+    '無理せず、自分のペースでいきましょう。',
+    'しっかり記録できました。いつも正確でたすかります。',
+    '小さな異変に気づけるのは、毎日の巡回のおかげです。',
+    '背筋がのびる見回り、ありがとうございます。',
+    '疲れたら深呼吸をひとつ。いつもありがとうございます。',
+    '今日のあなたの見回りに、感謝しています。',
+  ];
+  // OFF（下番）
+  const OFF_WORDS = [
+    '今日も一日おつかれさまでした！ゆっくり休んでください。',
+    '無事に勤務完了ですね。本当にありがとうございました。',
+    'おつかれさまでした。気をつけてお帰りください。',
+    '今日も現場を守ってくれてありがとうございました。',
+    '勤務完了です。今日もよくがんばりました！',
+    'おつかれさまでした。おいしいごはんで、ゆっくり休んでくださいね。',
+    '今日の勤務が無事に終わりました。ありがとうございました。',
+    'しっかり休んで、また元気な顔を見せてください。',
+  ];
+  const OFF_LATE = ['夜通しの勤務、本当におつかれさまでした。しっかり休んでくださいね。'];
+  // 天気
+  const BY_WEATHER = {
+    rain: ['雨の中の巡回、ありがとうございます。滑りやすいので気をつけて。', '雨の日の見回り、本当におつかれさまです。', '足元がぬれていませんか？雨の日もありがとうございます。', '雨の日は視界が悪いので、ゆっくり安全に回ってくださいね。'],
+    hot:  ['暑い中ありがとうございます。こまめに水分補給を。', '猛暑の中の巡回、本当におつかれさまです。日陰で休憩してください。', '熱中症に気をつけて。冷たい飲み物でひと休みを。'],
+    cold: ['寒い中ありがとうございます。手袋で手元を温かくしてくださいね。', '冷え込む中の見回り、おつかれさまです。', '寒い日の巡回、本当にありがとうございます。温かくしてくださいね。'],
+    wind: ['風が強い中ありがとうございます。飛来物に気をつけて。'],
+  };
+  // 回数
+  const BY_COUNT = {
+    first: ['本日最初の記録です。今日もよろしくお願いします！'],
+    many:  (n) => [`本日${n}回目の記録です。積み重ねが現場の安心につながっています。`, `今日はもう${n}回目。いいペースです、無理せずいきましょう。`, `${n}回目の確認、おつかれさまです。`],
+  };
+
+  const ICONS = {
+    sun:   '<svg viewBox="0 0 24 24" fill="#f5a623"><circle cx="12" cy="12" r="5"/><g stroke="#f5a623" stroke-width="2" stroke-linecap="round"><path d="M12 1v3M12 20v3M1 12h3M20 12h3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></g></svg>',
+    moon:  '<svg viewBox="0 0 24 24" fill="#5b6bbf"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4a8.5 8.5 0 1 0 11.5 11.5z"/></svg>',
+    rain:  '<svg viewBox="0 0 24 24"><path d="M7 15h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 8a3.5 3.5 0 0 0 1 7z" fill="#9fb3c8"/><g stroke="#3b8fe0" stroke-width="2" stroke-linecap="round"><path d="M8 18l-1 3M12 18l-1 3M16 18l-1 3"/></g></svg>',
+    hot:   '<svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v8.3a5 5 0 1 0 6 0V5a3 3 0 0 0-3-3z" fill="#ffd1c7"/><circle cx="12" cy="17" r="3" fill="#e74c3c"/><rect x="11" y="7" width="2" height="9" fill="#e74c3c"/></svg>',
+    cold:  '<svg viewBox="0 0 24 24" stroke="#4aa3df" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7M9 4l3 2 3-2M9 20l3-2 3 2"/></svg>',
+    wind:  '<svg viewBox="0 0 24 24" fill="none" stroke="#7f8c8d" stroke-width="2" stroke-linecap="round"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h8"/></svg>',
+    heart: '<svg viewBox="0 0 24 24" fill="#e0a800"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 5 6.4 5c2 0 3.6 1.1 4.4 2.6h2.4C14 6.1 15.6 5 17.6 5 21 5 23.1 8.4 21.6 11.8 19.5 16.4 12 21 12 21z"/></svg>',
+    shield:'<svg viewBox="0 0 24 24" fill="#057b7a"><path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3zm-1.5 14.5-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4-7 7z"/></svg>',
+    home:  '<svg viewBox="0 0 24 24" fill="#214d60"><path d="M12 3 2 12h3v8h5v-6h4v6h5v-8h3z"/></svg>',
+  };
+
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  function nowParts() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return { d, ymd: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, label: `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}` };
+  }
+  function timeBand(h) {
+    if (h >= 4 && h < 7) return { key: 'early', name: '早朝', icon: 'sun' };
+    if (h >= 7 && h < 10) return { key: 'morning', name: '朝', icon: 'sun' };
+    if (h >= 10 && h < 15) return { key: 'day', name: '日中', icon: 'sun' };
+    if (h >= 15 && h < 19) return { key: 'evening', name: '夕方', icon: 'sun' };
+    if (h >= 19 && h < 23) return { key: 'night', name: '夜', icon: 'moon' };
+    return { key: 'late', name: '深夜', icon: 'moon' };
+  }
+
+  // 今日の記録回数（このブラウザ内にだけ保存）
+  function loadLog() { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { return {}; } }
+  function countToday(ymd) {
+    const log = loadLog();
+    log[ymd] = (log[ymd] || 0) + 1;
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(log)); } catch {}
+    return log[ymd];
+  }
+
+  // 天気（Open-Meteo。取れなければ天気の言葉は使わない）
+  let weatherCache = null;
+  async function getWeather() {
+    if (weatherCache) return weatherCache;
+    try {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${PLACE.lat}&longitude=${PLACE.lon}&current=temperature_2m,weather_code,wind_speed_10m&timezone=Asia%2FTokyo`;
+      const ctrl = new AbortController(); setTimeout(() => ctrl.abort(), 3000);
+      const c = (await (await fetch(url, { signal: ctrl.signal })).json()).current;
+      const code = c.weather_code;
+      const kind = (code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95 ? 'rain'
+        : c.temperature_2m >= 30 ? 'hot' : c.temperature_2m <= 5 ? 'cold' : c.wind_speed_10m >= 30 ? 'wind' : null;
+      weatherCache = { kind, temp: Math.round(c.temperature_2m) };
+    } catch { weatherCache = { kind: null }; }
+    return weatherCache;
+  }
+
+  // 状況から言葉の候補を集めて、1つ選ぶ
+  // 最近出た言葉（このブラウザ内にだけ保存）
+  function loadRecent() { try { return JSON.parse(localStorage.getItem(RECENT_KEY)) || []; } catch { return []; } }
+  function remember(words) {
+    const r = [words, ...loadRecent().filter(x => x !== words)].slice(0, RECENT_MAX);
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(r)); } catch {}
+  }
+  // 最近出ていないものから選ぶ。全部出ていたら、いちばん前に出たものから選ぶ
+  function freshPick(items, key = (x) => x) {
+    const recent = loadRecent();
+    const fresh = items.filter(x => !recent.includes(key(x)));
+    if (fresh.length) return pick(fresh);
+    return [...items].sort((a, b) => recent.indexOf(key(b)) - recent.indexOf(key(a)))[0];
+  }
+
+  function chooseWords(ctx) {
+    let w;
+    {
+      const pool = [];
+      const add = (words, label, icon) => words.forEach(x => pool.push({ words: x, label, icon }));
+      if (ctx.kind === 'OFF') {
+        add(ctx.band.key === 'late' || ctx.band.key === 'early' ? [...OFF_LATE, ...OFF_WORDS] : OFF_WORDS, '勤務おつかれさまでした', 'home');
+      } else {
+        add(ON_BY_TIME[ctx.band.key], `${ctx.band.name}の巡回ありがとうございます`, ctx.band.icon);
+        add(ON_GENERAL, '巡回ありがとうございます', 'shield');
+        if (ctx.count === 1) add(BY_COUNT.first, '本日最初の記録', 'shield');
+        if (ctx.count >= 3) add(BY_COUNT.many(ctx.count), `本日${ctx.count}回目の記録`, 'shield');
+      }
+      if (ctx.weather.kind) add(BY_WEATHER[ctx.weather.kind], { rain: '雨の日もありがとうございます', hot: '暑い中ありがとうございます', cold: '寒い中ありがとうございます', wind: '風の強い日もありがとうございます' }[ctx.weather.kind], ctx.weather.kind);
+      w = freshPick(pool, x => x.words);
+    }
+    remember(w.words);
+    return w;
+  }
+
+  function renderThanks(w, ctx) {
+    $('thanksPic').innerHTML = ICONS[w.icon] || ICONS.shield;
+    $('thanksLabel').textContent = w.label;
+    const chips = [ctx.band.name, ctx.kind === 'ON' ? `本日${ctx.count}回目` : '勤務終了'];
+    if (ctx.weather.temp !== undefined) chips.push(`${ctx.weather.temp}℃`);
+    $('thanksChips').innerHTML = chips.map(c => `<span class="chip">${c}</span>`).join('');
+    $('thanksWords').textContent = w.words;
+  }
+
+  let lastCtx = null;
+  async function register(kind) {
+    const t = nowParts();
+    const count = countToday(t.ymd);
+    $('tag').textContent = kind;
+    $('tag').classList.toggle('off', kind === 'OFF');
+    $('sumTime').textContent = t.label;
+    $('sumPlace').textContent = `${$('pointPlace').textContent}（No.${$('pointNo').textContent}）`;
+    $('sumCount').textContent = `${count}回目`;
+    $('thanksWords').textContent = '';
+    $('thanksLabel').textContent = '';
+    $('thanksChips').innerHTML = '';
+    $('thanksPic').innerHTML = ICONS.shield;
+    $('nextCard').hidden = true;
+    document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === 'screen-done'));
+    window.scrollTo(0, 0);
+    const weather = await getWeather();
+    lastCtx = { kind, band: timeBand(t.d.getHours()), count, weather };
+    renderThanks(chooseWords(lastCtx), lastCtx);
+    const won = recordTouch(kind, t.d, weather);
+    renderNext();
+    if (won.length) { awardQueue = won; setTimeout(showAward, 1200); }
+  }
+
+  // ---------------- メダル ----------------
+  const STATS_KEY = 'patrol-medal-v1';
+  const TIERS = [
+    { name: 'ブロンズ', light: '#f3c19a', mid: '#cd7f32', dark: '#7a4a1e' },
+    { name: 'シルバー', light: '#ffffff', mid: '#c0c7cf', dark: '#6b7680' },
+    { name: 'ゴールド', light: '#fff3b0', mid: '#f1c40f', dark: '#9a7d0a' },
+  ];
+  // value(st) = 進み具合の数値、goals = ブロンズ／シルバー／ゴールドの条件
+  const MEDALS = [
+    { id: 'meister', name: '巡回マイスター', desc: '巡回（ON）の累計回数', unit: '回', goals: [10, 50, 100], icon: 'shield', value: st => st.on },
+    { id: 'streak',  name: '皆勤ロード',     desc: '記録のある日が何日続いたか（最高記録）', unit: '日連続', goals: [3, 7, 20], icon: 'cal', value: st => st.bestStreak },
+    { id: 'night',   name: '夜の守り人',     desc: '19時〜翌4時の巡回回数', unit: '回', goals: [5, 20, 50], icon: 'moon', value: st => st.night },
+    { id: 'early',   name: '朝の番人',       desc: '4時〜7時の巡回回数', unit: '回', goals: [3, 10, 30], icon: 'sun', value: st => st.early },
+    { id: 'rain',    name: '雨の日も',       desc: '雨の日の巡回回数', unit: '回', goals: [3, 10, 30], icon: 'umbrella', value: st => st.rain },
+    { id: 'daily',   name: 'コツコツの一日', desc: '1日の巡回回数（最高記録）', unit: '回', goals: [5, 10, 15], icon: 'stack', value: st => st.bestDay },
+    { id: 'finish',  name: '勤務完了',       desc: '勤務終了（OFF）の累計回数', unit: '回', goals: [5, 20, 50], icon: 'home', value: st => st.off },
+  ];
+  const MEDAL_ICON = {
+    shield:   '<path d="M0 -22 -18 -15v12c0 11 7.6 21 18 24 10.4-3 18-13 18-24v-12z" fill="#fff" opacity=".95"/><path d="M-7 0l5 5 10-10" fill="none" stroke="#057b7a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>',
+    cal:      '<rect x="-17" y="-15" width="34" height="30" rx="4" fill="#fff"/><rect x="-17" y="-15" width="34" height="9" rx="3" fill="#057b7a"/><g fill="#057b7a"><circle cx="-8" cy="2" r="2.5"/><circle cx="0" cy="2" r="2.5"/><circle cx="8" cy="2" r="2.5"/><circle cx="-8" cy="9" r="2.5"/><circle cx="0" cy="9" r="2.5"/></g>',
+    moon:     '<path d="M8 -16 a18 18 0 1 0 10 26 a14 14 0 1 1 -10 -26z" fill="#fff"/><circle cx="12" cy="-12" r="1.8" fill="#fff"/><circle cx="16" cy="-2" r="1.2" fill="#fff"/>',
+    sun:      '<circle r="9" fill="#fff"/><g stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path d="M0 -20v5M0 15v5M-20 0h5M15 0h5M-14 -14l3.5 3.5M10.5 10.5l3.5 3.5M-14 14l3.5 -3.5M10.5 -10.5l3.5 -3.5"/></g>',
+    umbrella: '<path d="M-20 0 a20 18 0 0 1 40 0z" fill="#fff"/><path d="M0 0v14a4 4 0 0 1 -8 0" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/><g fill="#9fd8ff"><path d="M-14 8l-2 5M14 8l-2 5" stroke="#9fd8ff" stroke-width="3" stroke-linecap="round"/></g>',
+    stack:    '<g fill="#fff"><rect x="-16" y="6" width="32" height="8" rx="3"/><rect x="-13" y="-4" width="26" height="8" rx="3"/><rect x="-10" y="-14" width="20" height="8" rx="3"/></g>',
+    home:     '<path d="M0 -18 -19 -1h5v16h10V5h8v10h10V-1h5z" fill="#fff"/>',
+  };
+  // グラデーションのIDは描くたびに変える（非表示の画面にある同じIDを参照すると色が付かないため）
+  let medalSeq = 0;
+  function medalSVG(m, tier) {
+    const t = TIERS[tier], id = `${m.id}${tier}-${++medalSeq}`;
+    return `<svg viewBox="0 0 120 152" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="g${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${t.light}"/><stop offset=".5" stop-color="${t.mid}"/><stop offset="1" stop-color="${t.dark}"/></linearGradient></defs>
+      <polygon points="34,0 58,0 70,58 46,58" fill="#057b7a"/><polygon points="86,0 62,0 50,58 74,58" fill="#0a9c99"/>
+      <circle cx="60" cy="98" r="50" fill="url(#g${id})" stroke="${t.dark}" stroke-width="3"/>
+      <circle cx="60" cy="98" r="40" fill="${t.dark}" opacity=".35"/>
+      <circle cx="60" cy="98" r="40" fill="none" stroke="${t.light}" stroke-width="2" stroke-dasharray="3 4"/>
+      <g transform="translate(60 94)">${MEDAL_ICON[m.icon]}</g>
+      <text x="60" y="132" font-size="10" font-weight="800" text-anchor="middle" fill="#fff" font-family="sans-serif">${m.goals[tier]}${m.unit.replace('日連続', 'DAYS').replace('回', '')}</text>
+      <ellipse cx="40" cy="70" rx="10" ry="5" fill="#fff" opacity=".45" transform="rotate(-35 40 70)"/>
+    </svg>`;
+  }
+
+  // 記録の集計（このブラウザ内にだけ保存）
+  const freshStats = () => ({ on: 0, off: 0, night: 0, early: 0, rain: 0, days: {}, bestDay: 0, bestStreak: 0, earned: {} });
+  function loadStats() { try { const v = JSON.parse(localStorage.getItem(STATS_KEY)); if (v && v.days) return { ...freshStats(), ...v }; } catch {} return freshStats(); }
+  let stats = loadStats();
+  function saveStats() { try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch {} }
+  const ymdOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  function streakEnding(ymd) {
+    let n = 0; const d = new Date(ymd + 'T00:00:00');
+    while (stats.days[ymdOf(d)] !== undefined) { n++; d.setDate(d.getDate() - 1); }
+    return n;
+  }
+  const tierOf = (m) => m.goals.filter(g => m.value(stats) >= g).length;   // 0〜3
+  const earnedCount = () => MEDALS.reduce((a, m) => a + tierOf(m), 0);
+
+  // 1回の記録を集計し、新しく取れたメダルを返す
+  function recordTouch(kind, d, weather) {
+    const before = Object.fromEntries(MEDALS.map(m => [m.id, tierOf(m)]));
+    const ymd = ymdOf(d), h = d.getHours();
+    if (stats.days[ymd] === undefined) stats.days[ymd] = 0;
+    if (kind === 'ON') {
+      stats.on++; stats.days[ymd]++;
+      if (h >= 19 || h < 4) stats.night++;
+      if (h >= 4 && h < 7) stats.early++;
+      if (weather.kind === 'rain') stats.rain++;
+      stats.bestDay = Math.max(stats.bestDay, stats.days[ymd]);
+    } else {
+      stats.off++;
+    }
+    stats.bestStreak = Math.max(stats.bestStreak, streakEnding(ymd));
+    const won = [];
+    MEDALS.forEach(m => { for (let t = before[m.id]; t < tierOf(m); t++) { won.push({ m, tier: t }); stats.earned[`${m.id}-${t}`] = ymd; } });
+    saveStats();
+    return won;
+  }
+
+  function renderNext() {
+    const list = MEDALS.map(m => { const t = tierOf(m); if (t >= 3) return null; const v = m.value(stats), g = m.goals[t], prev = t ? m.goals[t - 1] : 0; return { m, t, v, g, ratio: (v - prev) / (g - prev) }; })
+      .filter(Boolean).sort((a, b) => b.ratio - a.ratio).slice(0, 2);
+    $('nextCard').hidden = !list.length;
+    $('nextList').innerHTML = list.map(x => `<div class="prog">${medalSVG(x.m, x.t)}<div><div class="nm">${x.m.name}（${TIERS[x.t].name}）</div><div class="bar"><div style="width:${Math.min(100, x.ratio * 100)}%"></div></div><div class="tx">あと${x.g - x.v}${x.m.unit === '日連続' ? '日' : '回'} ・ ${x.m.desc}</div></div></div>`).join('');
+  }
+  function renderLink() {
+    const got = MEDALS.flatMap(m => [...Array(tierOf(m)).keys()].map(t => ({ m, t }))).slice(-4);
+    $('miniMedals').innerHTML = got.length ? got.map(x => medalSVG(x.m, x.t)).join('') : medalSVG(MEDALS[0], 0).replace('<svg', '<svg style="filter:grayscale(1);opacity:.3"');
+    $('medalCount').textContent = `${earnedCount()} / ${MEDALS.length * 3} 個のメダルを獲得`;
+  }
+  function renderCollection() {
+    $('colCount').textContent = earnedCount();
+    $('colTotal').textContent = MEDALS.length * 3;
+    $('medalRows').innerHTML = MEDALS.map(m => {
+      const v = m.value(stats);
+      return `<div class="mrow"><div class="top"><span class="nm">${m.name}</span><span class="val">いま ${v}${m.unit}</span></div><div class="desc">${m.desc}</div>
+        <div class="slots">${TIERS.map((t, i) => { const at = stats.earned[`${m.id}-${i}`]; return `<div class="slot${v >= m.goals[i] ? '' : ' locked'}">${medalSVG(m, i)}<b>${t.name}</b>${m.goals[i]}${m.unit}${at ? `<br>${at.slice(5).replace('-', '/')} 獲得` : ''}</div>`; }).join('')}</div></div>`;
+    }).join('');
+  }
+
+  let awardQueue = [];
+  function showAward() {
+    const x = awardQueue.shift();
+    if (!x) { $('award').classList.remove('open'); return; }
+    $('awardMedal').innerHTML = medalSVG(x.m, x.tier);
+    $('awardTitle').textContent = `${x.m.name} ${TIERS[x.tier].name}メダル獲得！`;
+    $('awardText').textContent = `${x.m.desc}が ${x.m.goals[x.tier]}${x.m.unit} に到達しました。いつもありがとうございます！`;
+    $('awardMore').textContent = awardQueue.length ? `ほかにも ${awardQueue.length}個 のメダルがあります` : '';
+    $('btnAward').textContent = awardQueue.length ? '次のメダルを見る' : 'ありがとう！';
+    $('award').classList.add('open');
+    confetti(x.tier === 2 ? 220 : x.tier === 1 ? 150 : 100);
+  }
+  $('btnAward').addEventListener('click', showAward);
+
+  function confetti(count) {
+    const cv = $('confetti'), ctx = cv.getContext('2d');
+    cv.width = innerWidth; cv.height = innerHeight;
+    const colors = ['#ffe08a', '#f1c40f', '#39b5a4', '#057b7a', '#cd7f32', '#ffffff'];
+    const ps = Array.from({ length: count }, () => ({ x: Math.random() * cv.width, y: -20 - Math.random() * cv.height * .5, w: 6 + Math.random() * 6, h: 8 + Math.random() * 8, vy: 2 + Math.random() * 3, vx: -1.5 + Math.random() * 3, r: Math.random() * 3, vr: -.2 + Math.random() * .4, c: colors[Math.floor(Math.random() * colors.length)] }));
+    const start = performance.now();
+    (function frame(t) {
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      for (const p of ps) { p.x += p.vx; p.y += p.vy; p.r += p.vr; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.r))); ctx.restore(); }
+      if (t - start < 4000) requestAnimationFrame(frame); else ctx.clearRect(0, 0, cv.width, cv.height);
+    })(start);
+  }
+
+  function go(name) {
+    if (name === 'medals') renderCollection();
+    if (name === 'form') renderLink();
+    document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === `screen-${name}`));
+    window.scrollTo(0, 0);
+  }
+  document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
+  renderLink();
+
+  $('demoAdd').addEventListener('click', () => {
+    // 過去10日に、ランダムな時間帯の記録を足す
+    const won = [];
+    for (let i = 0; i < 10; i++) {
+      const d = new Date(); d.setDate(d.getDate() - (9 - i)); d.setHours([2, 5, 9, 14, 20, 22][Math.floor(Math.random() * 6)]);
+      won.push(...recordTouch(i % 4 === 3 ? 'OFF' : 'ON', d, { kind: Math.random() < .3 ? 'rain' : null }));
+    }
+    renderCollection();
+    if (won.length) { awardQueue = won; showAward(); }
+  });
+  $('demoReset').addEventListener('click', () => {
+    if (!confirm('メダルと記録をリセットしますか？')) return;
+    stats = freshStats(); saveStats(); renderCollection();
+  });
+
+  $('btnOn').addEventListener('click', () => register('ON'));
+  $('btnOff').addEventListener('click', () => register('OFF'));
+  $('btnMore').addEventListener('click', () => { if (lastCtx) renderThanks(chooseWords(lastCtx), lastCtx); });
+
+</script>
+</body>
+</html>
